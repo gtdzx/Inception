@@ -286,12 +286,12 @@ const int n = 10000;
 tdot a[MaxN], b[MaxN];
 
 int main() {
-	freopen("output.txt", "w", stdout);
+	//freopen("output.txt", "w", stdout);
 	srand(time(NULL));
 	for (int i = 0; i < n; i++) a[i] = tdot(rand() % 10000, rand() % 10000);
 	//for (int i = 0; i < n; i++) a[i].print();
 	int m = 0;
 	ConvexHull(a, n, b, m);
-	for (int i = 0; i < m; i++) b[i].print();
+	//for (int i = 0; i < m; i++) b[i].print();
 	return 0;
 }
