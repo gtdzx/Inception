@@ -174,7 +174,8 @@ int Inception::set_memory_limit() {
 }
 int Inception::set_output_limit() {
     struct rlimit rl;
-    rl.rlim_cur = rl.rlim_max = this->architecture.output_limit;
+    rl.rlim_cur = this->architecture.output_limit;
+    rl.rlim_max = rl.rlim_cur + 1000; //hard limit exceed will cause a SIGKILL instead of a SIGXFSZ, +1000 to make sure parent will receive a SIGXFSZ provided that the child would not change the sigaction.  
     return setrlimit(RLIMIT_FSIZE, &rl);
 }
 int Inception::set_stdin() {
@@ -213,7 +214,8 @@ int Inception::set_cwd() {
 }
 int Inception::set_time_limit() {
     struct rlimit rl;
-    rl.rlim_cur = rl.rlim_max = this->architecture.time_limit / 1000 + 1;
+    rl.rlim_cur = this->architecture.time_limit / 1000 + 1;
+    rl.rlim_max = rl.rlim_cur + 1; //hard limit exceed will cause a SIGKILL instead of a SIGXCPU. +1 to make sure the parent will receive a SIGXCPU provided that the child would not change the sigaction.
     return setrlimit(RLIMIT_CPU, &rl);
 }
 int Inception::join_cgroup() {
@@ -305,6 +307,9 @@ int Inception::build() {
         log(message);
         return x;
     }
+    //close other fds
+    for(int i = 3; i < 128; i++)
+        close(i);
     //set cwd
     if(0 != (x = this->set_cwd())) {
         string message = "failed to set cwd " + this->architecture.working_dir + ". errno = " + this->int2string(errno);
@@ -363,14 +368,102 @@ int Inception::exec() {
 
     return 0;
 }
+void Inception::sig_alarm(int signo) {
+    this->alarmed = true;
+    log("alarmed");
+    kill(this->pid, SIGKILL);
+    return;
+}
 
-int Inception::waitfor() {
+int Inception::set_alarm() {
+    int x;
+    struct sigaction newact, oldact;
+    newact.sa_handler = this->sig_alarm;
+    sigemptyset(&newact.sa_mask);
+    newact.sa_flags = 0;
+    if(-1 == (x = sigaction(SIGALRM, &newact, &oldact))) {
+        string message = "failed to sigaction. errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    this->alarmed = false;
+    alarm(0);
+    alarm(this->time_limit / 1000 + 3); // +3 seconds 
+    string message = "set alarm: " + this->int2string(this->time_limit / 1000 + 3) + " second(s).";
+    log(message);
     return 0;
 }
 
+int Inception::waitfor() {
+    int status;
+    int x;
+    if(-1 == (x = this->set_alarm())) {
+        return -1;
+    }
+    int _pid = waitpid(this->pid, &status, 0);
+    if(_pid != this->pid) {
+        string message= "failed to waitpid. return value is " + this->int2string(_pid) + ", errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    if(WIFEXITED(status)) {//normal exit
+        this->exit_status = WEXITSTATUS(status);
+        this->time = this->read_time();
+        this->memory = this->read_memory();
+        if(this->exit_status == 0) {
+            if(this->time > this->architecture.time_limit)
+                this->verdict = "TLE";
+            else if(this->memory > this->architecture.memory)
+                this->verdict = "MLE";
+            else 
+                this->verdict = "OK";
+        }
+        else {
+            this->verdict = "RE";
+            //TODO: is it possible that a java (or mono, php, etc) program calls for 10G mem and jvm exits with oom?
+            //TODO: read runtime error message from stderr?
+        }
+        string message = "normal exited with status = " + this->int2string(this->exit_status) + "\nverdict = " + this->verdict;
+        log(message);
+        return 0;
+    }
+    if(WIFSIGNALED(status)) {
+        int signo = WTERMSIG(status);
+        if(signo == SIGXCPU) {//time limit exceeded
+            this->time = this->read_time();
+            this->memory= this->read_memory();
+            this->verdict = "TLE";
+        }
+        if(signo == SIGXFSZ) {//output limit exceeded
+            this->time = this->read_time();
+            this->memory = this->read_memory();
+            this->verdict = "OLE";
+        }
+        if(this->alarmed) {//time limit exceeded
+            this->time = this->architecture.time_limit;
+            this->memory = this->read_memory();
+            this->verdict = "TLE";
+        }
+        //unknown kill
+        this->time = this->read_time();
+        this->memory = this->memory();
+        if(this->time > this->architecture.time_limit)
+            this->verdict = "TLE";
+        else if(this->memory > this->architecture.memory)
+            this->verdict = "MLE";
+        else
+            this->verdict = "RE";
+        string message = "signaled by sig = " + this->int2string(signo) + "\nverdict = " + this->verdict;
+        log(message);
+        return 0;
+    }
+    log("unknown wait status: neither EXITED nor SIGNALED.");
+    return -1;
+}
+
 int Inception::destroy() {
-    kill(this->pid, 0);
-    kill(-this->pid, 0);
+    kill(this->pid, SIGKILL);
+    kill(-this->pid, SIGKILL);
     FILE* f;
     string path = this->architecture.cgroup_dir + "tasks";
     if(NULL == (f = fopen(path.c_str(), "r"))) {
@@ -387,7 +480,7 @@ int Inception::destroy() {
     if(pids.size() == 0)
         return 0;
     for(vector<int>::iterator i = pids.begin(); i != pids.end(); i++)
-        kill(*i, 0);
+        kill(*i, SIGKILL);
     pids.clear();
     if(NULL == (f = fopen(path.c_str(), "r"))) {
         string message = "failed to re- open " + path + ". errno = " + this->int2string(errno);

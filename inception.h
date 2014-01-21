@@ -17,6 +17,11 @@ private:
     char* cmd[20];
     string logf;
     ofstream logger;
+    bool alarmed;
+    int time; //in ms
+    int memory; //in MB
+    int exit_status;
+    string verdict;
     string int2string(int x);
     bool is_file(string path);
     bool is_dir(string path);
