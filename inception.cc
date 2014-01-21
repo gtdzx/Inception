@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <sstream>
+#include <vector>
 string Inception::int2string(int x) {
     string ret = "";
     while(x) {
@@ -152,7 +153,7 @@ int Inception::set_memory_limit() {
     long long memory_limit_in_bytes = this->architecture.memory_limit;
     memory_limit_in_bytes *= 1024 * 1024;
     f = fopen(path.c_str(), "w");
-    if(fd == NULL) {
+    if(f == NULL) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
         log(message);
         return -1;
@@ -161,7 +162,7 @@ int Inception::set_memory_limit() {
     fclose(f);
     path = this->architecture.cgroup_dir + "memory.soft_limit_in_bytes";
     f = fopen(path.c_str(), "w");
-    if(fd == NULL) {
+    if(f == NULL) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
         log(message);
         return -1;
@@ -367,9 +368,39 @@ int Inception::waitfor() {
 }
 
 int Inception::destroy() {
-    return 0;
+    kill(this->pid, 0);
+    kill(-this->pid, 0);
+    FILE* f;
+    string path = this->architecture.cgroup_dir + "tasks";
+    if(NULL == (f = fopen(path.c_str(), "r"))) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    vector<string> pids;
+    int _pid;
+    while(fscanf(f, "%d", &_pid) != EOF) {
+        pids.push_back(_pid);
+    }
+    fclose(f);
+    if(pids.size() == 0)
+        return 0;
+    for(vector<string>::iterator i = pids.begin(); i != pids.end(); i++)
+        kill(*i, 0);
+    pids.clear();
+    if(NULL == (f = open(path.c_str(), "r"))) {
+        string message = "failed to re- open " + path + ". errno = " + this->int2tring(errno);
+        log(message);
+        return -1;
+    }
+    while(fscanf(f, "%d", &_pid) != EOF) {
+        pids.push_back(_pid);
+    }
+    fclose(f);
+    return - pids.size();
 }
 
 int Inception::clean() {
+
     return 0;
 }

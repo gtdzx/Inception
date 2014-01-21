@@ -11,7 +11,7 @@ private:
         string chroot_dir, working_dir, cgroup_dir;
         int time_limit; //in ms
         int memory_limit; //in MB
-        long long output_limit //in Byte
+        long long output_limit; //in Byte
     } architecture;
     int pid;
     char* cmd[20];
