@@ -207,10 +207,12 @@ int Inception::set_stderr() {
     return 0;
 }
 int Inception::set_cwd() {
-    return 0;
+    return chdir(this->architecture.working_dir.c_str());
 }
 int Inception::set_time_limit() {
-    return 0;
+    struct rlimit rl;
+    rl.rlim_cur = rl.rlim_max = this->architecture.time_limit / 1000 + 1;
+    return setrlimit(RLIMIT_CPU, &rl);
 }
 int Inception::join_cgroup() {
     return 0;
