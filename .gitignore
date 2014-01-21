@@ -1,3 +1,5 @@
+# binary
+*.exe
 # Compiled Object files
 *.slo
 *.lo
