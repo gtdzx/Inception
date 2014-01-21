@@ -176,6 +176,17 @@ int Inception::set_output_limit() {
     return setrlimit(RLIMIT_FSIZE, &rl);
 }
 int Inception::set_stdin() {
+    int fd, x;
+    if(-1 == (fd = open(this->architecture.inf.c_str(), O_RDONLY, 0))) {
+        string message = "failed to open " + this->architecture.inf + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    if(-1 == (x = dup2(fd, 0))) {
+        string message = "failed to dup2(" + this->int2string(fd) + ",0). errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
     return 0;
 }
 int Inception::set_stdout() {
