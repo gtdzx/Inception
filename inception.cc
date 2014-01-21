@@ -190,6 +190,17 @@ int Inception::set_stdin() {
     return 0;
 }
 int Inception::set_stdout() {
+    int fd, x;
+    if(-1 == (fd = open(this->architecture.outf.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0644))) {
+        string message = "failed to open " + this->architecture.outf + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    if(-1 == (x = dup2(fd, 1))) {
+        string message = "failed to dup2(" + this->int2string(fd) + ",0). errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
     return 0;
 }
 int Inception::set_stderr() {
