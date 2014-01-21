@@ -401,6 +401,27 @@ int Inception::destroy() {
 }
 
 int Inception::clean() {
-
+    //echo 0 > cpuacct.usage
+    //echo 0 > memory.max_usage_in_bytes
+    FILE* f;
+    string path;
+    path = this->architecture.cgroup_dir + "cpuacct.usage";
+    f = fopen(path.c_str(), "w");
+    if(f == NULL) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    fprintf(f, "%d", 0);
+    fclose(f);
+    path = this->architecture.cgroup_dir + "memory.max_usage_in_bytes";
+    f = fopen(path.c_str(), "w");
+    if(f == NULL) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    fprintf(f, "%d", 0);
+    fclose(f);
     return 0;
 }
