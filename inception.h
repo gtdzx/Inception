@@ -1,5 +1,6 @@
-#include<iostream>
-#include<string>
+#include <iostream>
+#include <string>
+#include <fstream>
 using namespace std;
 class Inception {
 private:
@@ -9,8 +10,13 @@ private:
         int uid, gid;
         string chroot_dir, working_dir, cgroup_dir;
         int pid;
-        string log;
     } architecture;
+    string logf;
+    ofstream logger;
+    string int2string(int x);
+    bool is_file(string path);
+    bool is_dir(string path);
+    void log(string);
     int check();
     int build();
     int clean();
@@ -24,7 +30,7 @@ public:
                 string chroot_dir,
                 string working_dir, 
                 string cgroup_dir,
-                string log);
+                string logf);
     int exec();
     int waitfor();
     int destroy();
