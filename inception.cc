@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <sstream>
 string Inception::int2string(int x) {
     string ret = "";
@@ -146,7 +148,26 @@ int Inception::set_nproc() {
 int Inception::set_memory_limit() {
     //echo $memory_limit > memory.limit_in_bytes
     //echo $memory_limit > memory.soft_limit_in_bytes
-    
+    FILE* f;
+    string path;
+    path = this->architecture.cgroup_dir + "memory.limit_in_bytes";
+    f = fopen(path.c_str(), "w");
+    if(fd == NULL) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    fprintf(f, "%lld", this->architecture.memory_limit * 1024 * 1024);
+    fclose(f);
+    path = this->architecture.cgroup_dir + "memory.soft_limit_in_bytes";
+    f = fopen(path.c_str(), "w");
+    if(fd == NULL) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    fprintf(f, "%lld", this->architeture.memory_limit * 1024 * 1024);
+    fclose(f);
     return 0;
 }
 int Inception::set_output_limit() {
