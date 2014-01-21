@@ -9,8 +9,9 @@ private:
         string cmd_line,inf,outf;
         int uid, gid;
         string chroot_dir, working_dir, cgroup_dir;
-        long long time_limit; //in ms
-        long long memory_limit; //in MB
+        int time_limit; //in ms
+        int memory_limit; //in MB
+        long long output_limit //in Byte
     } architecture;
     int pid;
     char* cmd[20];

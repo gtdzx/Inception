@@ -136,14 +136,12 @@ int Inception::check() {
 int Inception::set_nofile() {
     struct rlimit rl;
     rl.rlim_cur = rl.rlim_max = 10;
-    setrlimit(RLIMIT_NOFILE, &rl);
-    return 0;
+    return setrlimit(RLIMIT_NOFILE, &rl);
 }
 int Inception::set_nproc() {
     struct rlimit rl;
     rl.rlim_cur = rl.rlim_max = 10;
-    setrlimit(RLIMIT_NPROC, &rl);
-    return 0;
+    return setrlimit(RLIMIT_NPROC, &rl);
 }
 int Inception::set_memory_limit() {
     //echo $memory_limit > memory.limit_in_bytes
@@ -151,13 +149,15 @@ int Inception::set_memory_limit() {
     FILE* f;
     string path;
     path = this->architecture.cgroup_dir + "memory.limit_in_bytes";
+    long long memory_limit_in_bytes = this->architecture.memory_limit;
+    memory_limit_in_bytes *= 1024 * 1024;
     f = fopen(path.c_str(), "w");
     if(fd == NULL) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
         log(message);
         return -1;
     }
-    fprintf(f, "%lld", this->architecture.memory_limit * 1024 * 1024);
+    fprintf(f, "%lld", memory_limit_in_bytes);
     fclose(f);
     path = this->architecture.cgroup_dir + "memory.soft_limit_in_bytes";
     f = fopen(path.c_str(), "w");
@@ -166,12 +166,14 @@ int Inception::set_memory_limit() {
         log(message);
         return -1;
     }
-    fprintf(f, "%lld", this->architeture.memory_limit * 1024 * 1024);
+    fprintf(f, "%lld", memory_limit_in_bytes);
     fclose(f);
     return 0;
 }
 int Inception::set_output_limit() {
-    return 0;
+    struct rlimit rl;
+    rl.rlim_cur = rl.rlim_max = this->architecture.output_limit;
+    return setrlimit(RLIMIT_FSIZE, &rl);
 }
 int Inception::set_stdin() {
     return 0;
