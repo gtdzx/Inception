@@ -138,9 +138,15 @@ int Inception::set_nofile() {
     return 0;
 }
 int Inception::set_nproc() {
+    struct rlimit rl;
+    rl.rlim_cur = rl.rlim_max = 10;
+    setrlimit(RLIMIT_NPROC, &rl);
     return 0;
 }
 int Inception::set_memory_limit() {
+    //echo $memory_limit > memory.limit_in_bytes
+    //echo $memory_limit > memory.soft_limit_in_bytes
+    
     return 0;
 }
 int Inception::set_output_limit() {
