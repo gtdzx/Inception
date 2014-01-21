@@ -215,6 +215,17 @@ int Inception::set_time_limit() {
     return setrlimit(RLIMIT_CPU, &rl);
 }
 int Inception::join_cgroup() {
+    //echo pid > tasks
+    FILE* f;
+    string path;
+    path = this->architecture.cgroup_dir + "tasks";
+    if(NULL == (f = fopen(path.c_str(), "w"))) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    fprintf(f, "%d", this->pid);
+    fclose(f);
     return 0;
 }
 
