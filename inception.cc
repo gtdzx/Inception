@@ -9,6 +9,7 @@
 #include <sched.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <signal.h>
 #include <sstream>
 #include <vector>
 string Inception::int2string(int x) {
@@ -377,7 +378,7 @@ int Inception::destroy() {
         log(message);
         return -1;
     }
-    vector<string> pids;
+    vector<int> pids;
     int _pid;
     while(fscanf(f, "%d", &_pid) != EOF) {
         pids.push_back(_pid);
@@ -385,11 +386,11 @@ int Inception::destroy() {
     fclose(f);
     if(pids.size() == 0)
         return 0;
-    for(vector<string>::iterator i = pids.begin(); i != pids.end(); i++)
+    for(vector<int>::iterator i = pids.begin(); i != pids.end(); i++)
         kill(*i, 0);
     pids.clear();
-    if(NULL == (f = open(path.c_str(), "r"))) {
-        string message = "failed to re- open " + path + ". errno = " + this->int2tring(errno);
+    if(NULL == (f = fopen(path.c_str(), "r"))) {
+        string message = "failed to re- open " + path + ". errno = " + this->int2string(errno);
         log(message);
         return -1;
     }
@@ -397,7 +398,7 @@ int Inception::destroy() {
         pids.push_back(_pid);
     }
     fclose(f);
-    return - pids.size();
+    return pids.size();
 }
 
 int Inception::clean() {
