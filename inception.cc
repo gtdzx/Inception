@@ -2,9 +2,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
+#include <sstream>
 string Inception::int2string(int x) {
     string ret = "";
     while(x) {
@@ -15,7 +18,7 @@ string Inception::int2string(int x) {
     return ret;
 }
 
-bool is_file(string path) {
+bool Inception::is_file(string path) {
     struct stat _stat;
     if(0 != stat(path.c_str(), &_stat)) {
         string message = "failed to stat " + path + ". errno = " + this->int2string(errno);
@@ -26,7 +29,7 @@ bool is_file(string path) {
 }
 
 
-bool is_dir(string path) {
+bool Inception::is_dir(string path) {
     struct stat _stat;
     if(0 != stat(path.c_str(), &_stat)) {
         string message = "failed to stat " + path + ". errno = " + this->int2string(errno);
@@ -42,7 +45,17 @@ void Inception::log(string s) {
     else
         cerr << s << endl << flush;
 }
-
+int Inception::prepare_cmd() {
+    basic_istringstream<char> in(this->architecture.cmd_line);
+    string temp;
+    int index = 0;
+    while(in >> temp) {
+        this->cmd[index] = new char[temp.size() + 1];
+        sprintf(this->cmd[index], "%s", temp.c_str());
+        index++;
+    }
+    this->cmd[index] = 0;
+}
 int Inception::init(int box_id,
                 string cmd_line, 
                 string inf,
@@ -56,6 +69,7 @@ int Inception::init(int box_id,
     
     this->architecture.box_id = box_id;
     this->architecture.cmd_line = cmd_line;
+    this->prepare_cmd();
     this->architecture.inf = inf;
     this->architecture.outf = outf;
     this->architecture.uid = uid;
@@ -114,6 +128,40 @@ int Inception::check() {
         log(this->architecture.cgroup_dir + " is not a directory.");
         return -5;
     }
+    return 0;
+}
+
+int Inception::set_nofile() {
+    struct rlimit rl;
+    rl.rlim_cur = rl.rlim_max = 10;
+    setrlimit(RLIMIT_NOFILE, &rl);
+    return 0;
+}
+int Inception::set_nproc() {
+    return 0;
+}
+int Inception::set_memory_limit() {
+    return 0;
+}
+int Inception::set_output_limit() {
+    return 0;
+}
+int Inception::set_stdin() {
+    return 0;
+}
+int Inception::set_stdout() {
+    return 0;
+}
+int Inception::set_stderr() {
+    return 0;
+}
+int Inception::set_cwd() {
+    return 0;
+}
+int Inception::set_time_limit() {
+    return 0;
+}
+int Inception::join_cgroup() {
     return 0;
 }
 
@@ -198,8 +246,8 @@ int Inception::build() {
         return x;
     }
     //chroot
-    if(0 != (x = chroot(chroot_dir.c_str()))) {
-        string message = "failed to chroot to " + chroot_dir + ". errno = " + this->int2string(errno);
+    if(0 != (x = chroot(this->architecture.chroot_dir.c_str()))) {
+        string message = "failed to chroot to " + this->architecture.chroot_dir + ". errno = " + this->int2string(errno);
         log(message);
         return 0;
     }
