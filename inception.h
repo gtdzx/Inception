@@ -19,7 +19,7 @@ private:
     ofstream logger;
     bool alarmed;
     int time; //in ms
-    int memory; //in MB
+    int memory; //in KB
     int exit_status;
     string verdict;
     string int2string(int x);
@@ -40,7 +40,6 @@ private:
     int set_cwd();
     int set_time_limit();
     int join_cgroup();
-    void sig_alarm(int signo);
     int set_alarm();
     int read_time();
     int read_memory();

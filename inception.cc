@@ -394,11 +394,21 @@ int Inception::set_alarm() {
 }
 
 int Inception::read_time() {
-    return 0;
+    string path = this->architecture.cgroup_dir + "cpuacct.usage";
+    FILE* f = fopen(path.c_str(), "r");
+    long long nano;
+    fscanf(f, "%lld", &nano);
+    fclose(f);
+    return nano / 1000000;
 }
 
 int Inception::read_memory() {
-    return 0;
+    string path = this->architecture.cgroup_dir + "memory.max_usage_in_bytes";
+    FILE* f = fopen(path.c_str(), "r");
+    long long memory_in_bytes;
+    fscanf(f, "%lld", &memory_in_bytes);
+    fclose(f);
+    return memory_in_bytes / 1000;
 }
 
 int Inception::waitfor() {
@@ -414,7 +424,7 @@ int Inception::waitfor() {
     //We want waitpid below fails with EINTR when sigalarm raises. So we know the child process timed out.
     //See signal(7) and http://stackoverflow.com/questions/282176/waitpid-equivalent-with-timeout for more information
     int _pid = waitpid(this->pid, &status, 0);
-    if(_pid != this->pid) 
+    if(_pid != this->pid) { 
         if(errno == EINTR) { //wait intred by alarm
             alarm(0);
             this->alarmed = true;
