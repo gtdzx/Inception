@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <sys/resource.h>
 #include <unistd.h>
 #include <errno.h>
@@ -368,18 +369,16 @@ int Inception::exec() {
 
     return 0;
 }
-void Inception::sig_alarm(int signo) {
-    this->alarmed = true;
-    log("alarmed");
-    kill(this->pid, SIGKILL);
+
+void sig_alarm(int signo) { //free function, do nothing but intr wait
     return;
 }
 
 int Inception::set_alarm() {
     int x;
     struct sigaction newact, oldact;
-    newact.sa_handler = this->sig_alarm;
-    sigemptyset(&newact.sa_mask);
+    newact.sa_handler = sig_alarm;
+    sigemptyset(&newact.sa_mask);   //no SA_RESTART, make sure to intr wait
     newact.sa_flags = 0;
     if(-1 == (x = sigaction(SIGALRM, &newact, &oldact))) {
         string message = "failed to sigaction. errno = " + this->int2string(errno);
@@ -388,9 +387,17 @@ int Inception::set_alarm() {
     }
     this->alarmed = false;
     alarm(0);
-    alarm(this->time_limit / 1000 + 3); // +3 seconds 
-    string message = "set alarm: " + this->int2string(this->time_limit / 1000 + 3) + " second(s).";
+    alarm(this->architecture.time_limit / 1000 + 3); // +3 seconds 
+    string message = "set alarm: " + this->int2string(this->architecture.time_limit / 1000 + 3) + " second(s).";
     log(message);
+    return 0;
+}
+
+int Inception::read_time() {
+    return 0;
+}
+
+int Inception::read_memory() {
     return 0;
 }
 
@@ -399,13 +406,32 @@ int Inception::waitfor() {
     int x;
     if(-1 == (x = this->set_alarm())) {
         return -1;
-    }
+    } 
+    
+    //If a signal handler is invoked while a system call or library function call is blocked, then either:
+    //* the call is automatically restarted after the signal handler returns; or
+    //* the call fails with the error EINTR.
+    //We want waitpid below fails with EINTR when sigalarm raises. So we know the child process timed out.
+    //See signal(7) and http://stackoverflow.com/questions/282176/waitpid-equivalent-with-timeout for more information
     int _pid = waitpid(this->pid, &status, 0);
-    if(_pid != this->pid) {
+    if(_pid != this->pid) 
+        if(errno == EINTR) { //wait intred by alarm
+            alarm(0);
+            this->alarmed = true;
+            this->time = this->architecture.time_limit;
+            this->memory = this->read_memory();
+            this->verdict = "TLE";
+            kill(this->pid, SIGKILL);
+            string message = "alarmed. verdict = TLE";
+            log(message);
+            return 0;
+        }
         string message= "failed to waitpid. return value is " + this->int2string(_pid) + ", errno = " + this->int2string(errno);
         log(message);
+        alarm(0);
         return -1;
     }
+    alarm(0);
     if(WIFEXITED(status)) {//normal exit
         this->exit_status = WEXITSTATUS(status);
         this->time = this->read_time();
@@ -413,7 +439,7 @@ int Inception::waitfor() {
         if(this->exit_status == 0) {
             if(this->time > this->architecture.time_limit)
                 this->verdict = "TLE";
-            else if(this->memory > this->architecture.memory)
+            else if(this->memory > this->architecture.memory_limit)
                 this->verdict = "MLE";
             else 
                 this->verdict = "OK";
@@ -439,17 +465,18 @@ int Inception::waitfor() {
             this->memory = this->read_memory();
             this->verdict = "OLE";
         }
+        /*
         if(this->alarmed) {//time limit exceeded
             this->time = this->architecture.time_limit;
             this->memory = this->read_memory();
             this->verdict = "TLE";
-        }
+        }*/
         //unknown kill
         this->time = this->read_time();
-        this->memory = this->memory();
+        this->memory = this->read_memory();
         if(this->time > this->architecture.time_limit)
             this->verdict = "TLE";
-        else if(this->memory > this->architecture.memory)
+        else if(this->memory > this->architecture.memory_limit)
             this->verdict = "MLE";
         else
             this->verdict = "RE";

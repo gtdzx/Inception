@@ -40,6 +40,10 @@ private:
     int set_cwd();
     int set_time_limit();
     int join_cgroup();
+    void sig_alarm(int signo);
+    int set_alarm();
+    int read_time();
+    int read_memory();
 public:
     int init(   int box_id,
                 string cmd_line,
