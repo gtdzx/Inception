@@ -3,10 +3,10 @@
 #include <fstream>
 using namespace std;
 class Inception {
-private:
+public:
     struct {
         int box_id; 
-        string cmd_line,inf,outf;
+        string cmd_line,inf,outf,errf;
         int uid, gid;
         string chroot_dir, working_dir, cgroup_dir;
         int time_limit; //in ms
@@ -48,11 +48,15 @@ public:
                 string cmd_line,
                 string inf,
                 string outf,
+                string errf,
                 int uid,
                 int gid,
                 string chroot_dir,
                 string working_dir, 
                 string cgroup_dir,
+                int time_limit,
+                int memory_limit,
+                long long outout_limit,
                 string logf);
     int exec();
     int waitfor();

@@ -1,3 +1,7 @@
+if [ $# -ne 1 ]; then 
+    echo "arg number is not 1"
+    exit 1
+fi
 mkdir /var/sandbox
 mkdir /var/sandbox/$1/
 mkdir /var/sandbox/$1/proc
@@ -15,13 +19,14 @@ mount --bind /lib ./lib
 mount -o remount,nodev,exec,nosuid ./lib
 mount --bind /lib64 ./lib64/
 mount -o remount,nodev,exec,nosuid ./lib64/
-ln -s /usr/bin/mono ./usr/bin/mono
-ln -s /usr/bin/java ./usr/bin/java
+cp /usr/bin/mono ./usr/bin/mono
+cp /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java ./usr/bin/java
 
 mkdir /sys/fs/cgroup
-mkdir /sys/fs/cgroup/$1
-mount -t tmpfs $1 /sys/fs/cgroup/$1 -o size=32M
-mount -t cgroup -o cpuacct,memory $1 /sys/fs/cgroup/$1/
+mount -t tmpfs cgroup /sys/fs/cgroup/ -o size=32M
+mkdir /sys/fs/cgroup/sandbox
+mount -t cgroup -o cpuacct,memory sandbox /sys/fs/cgroup/sandbox/
+mkdir /sys/fs/cgroup/sandbox/$1
 
 
 

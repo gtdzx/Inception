@@ -13,8 +13,10 @@
 #include <signal.h>
 #include <sstream>
 #include <vector>
+#include <cstdlib>
 string Inception::int2string(int x) {
     string ret = "";
+    if(x == 0) return "0";
     while(x) {
         char c = '0' + (x % 10);
         ret = c + ret;
@@ -65,11 +67,15 @@ int Inception::init(int box_id,
                 string cmd_line, 
                 string inf,
                 string outf,
+                string errf,
                 int uid,
                 int gid,
                 string chroot_dir,
                 string working_dir,
                 string cgroup_dir,
+                int time_limit,
+                int memory_limit,
+                long long output_limit,
                 string logf) {
     
     this->architecture.box_id = box_id;
@@ -77,6 +83,7 @@ int Inception::init(int box_id,
     this->prepare_cmd();
     this->architecture.inf = inf;
     this->architecture.outf = outf;
+    this->architecture.errf = errf;
     this->architecture.uid = uid;
     this->architecture.gid = gid;
     this->architecture.chroot_dir = chroot_dir;
@@ -88,6 +95,9 @@ int Inception::init(int box_id,
     this->architecture.cgroup_dir = cgroup_dir;
     if(cgroup_dir[cgroup_dir.size() - 1] != '/')
         this->architecture.cgroup_dir += '/';
+    this->architecture.time_limit = time_limit;
+    this->architecture.memory_limit = memory_limit;
+    this->architecture.output_limit = output_limit;
     this->logf = logf;
     if(this->logf != "")
         this->logger.open(logf.c_str());
@@ -104,13 +114,9 @@ int Inception::check() {
         log(message);
         return -1;
     }
-    //inf & outf
+    //inf
     if(!this->is_file(this->architecture.inf)) {
         log(this->architecture.inf + " is not a regular file.");
-        return -2;
-    }
-    if(!this->is_file(this->architecture.outf)) {
-        log(this->architecture.outf + " is not a regular file.");
         return -2;
     }
     //chroot_dir & working_dir
@@ -138,12 +144,12 @@ int Inception::check() {
 
 int Inception::set_nofile() {
     struct rlimit rl;
-    rl.rlim_cur = rl.rlim_max = 10;
+    rl.rlim_cur = rl.rlim_max = 50;
     return setrlimit(RLIMIT_NOFILE, &rl);
 }
 int Inception::set_nproc() {
     struct rlimit rl;
-    rl.rlim_cur = rl.rlim_max = 10;
+    rl.rlim_cur = rl.rlim_max = 50;
     return setrlimit(RLIMIT_NPROC, &rl);
 }
 int Inception::set_memory_limit() {
@@ -201,13 +207,24 @@ int Inception::set_stdout() {
         return -1;
     }
     if(-1 == (x = dup2(fd, 1))) {
-        string message = "failed to dup2(" + this->int2string(fd) + ",0). errno = " + this->int2string(errno);
+        string message = "failed to dup2(" + this->int2string(fd) + ",1). errno = " + this->int2string(errno);
         log(message);
         return -1;
     }
     return 0;
 }
 int Inception::set_stderr() {
+    int fd, x;
+    if(-1 == (fd = open(this->architecture.errf.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0644))) {
+        string message = "failed to open " + this->architecture.errf + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    if(-1 == (x = dup2(fd, 2))) {
+        string message = "failed to dup2(" + this->int2string(fd) + ",2). errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
     return 0;
 }
 int Inception::set_cwd() {
@@ -308,15 +325,18 @@ int Inception::build() {
         log(message);
         return x;
     }
-    //close other fds
-    for(int i = 3; i < 128; i++)
-        close(i);
     //set cwd
     if(0 != (x = this->set_cwd())) {
         string message = "failed to set cwd " + this->architecture.working_dir + ". errno = " + this->int2string(errno);
         log(message);
         return x;
     }
+    //join cgroup
+    if(0 != (x = this->join_cgroup())) {
+        string message = "failed to join cgroup. errno = " + this->int2string(errno);
+        log(message);
+        return x;
+    } 
     //chroot
     if(0 != (x = chroot(this->architecture.chroot_dir.c_str()))) {
         string message = "failed to chroot to " + this->architecture.chroot_dir + ". errno = " + this->int2string(errno);
@@ -326,12 +346,6 @@ int Inception::build() {
     //set time limit (both cpu time and real time)
     if(0 != (x = this->set_time_limit())) {
         string message = "failed to set time limit. errno = " + this->int2string(errno);
-        log(message);
-        return x;
-    }
-    //join cgroup
-    if(0 != (x = this->join_cgroup())) {
-        string message = "failed to join cgroup. errno = " + this->int2string(errno);
         log(message);
         return x;
     }
@@ -346,6 +360,10 @@ int Inception::build() {
         log(message);
         return x;
     }
+    log("start to close fds...");
+    //close other fds
+    for(int i = 3; i < 128; i++)
+        close(i);
 
     return 0;
 }
@@ -359,11 +377,11 @@ int Inception::exec() {
     this->pid = fork();
     if(this->pid == 0) {//child process
         if(0 != (x = this->build()))
-            return x;
+            exit(x);
         execv(cmd[0], cmd);
         string message = "failed to set execv cmd. errno = " + this->int2string(errno);
         log(message);
-        return -1;
+        exit(-1);
     }
     //parent process
 
@@ -387,8 +405,8 @@ int Inception::set_alarm() {
     }
     this->alarmed = false;
     alarm(0);
-    alarm(this->architecture.time_limit / 1000 + 3); // +3 seconds 
-    string message = "set alarm: " + this->int2string(this->architecture.time_limit / 1000 + 3) + " second(s).";
+    alarm(this->architecture.time_limit / 1000 + 1); // +1 seconds 
+    string message = "set alarm: " + this->int2string(this->architecture.time_limit / 1000 + 1) + " second(s).";
     log(message);
     return 0;
 }
@@ -408,15 +426,16 @@ int Inception::read_memory() {
     long long memory_in_bytes;
     fscanf(f, "%lld", &memory_in_bytes);
     fclose(f);
-    return memory_in_bytes / 1000;
+    return memory_in_bytes / 1000000;
 }
 
 int Inception::waitfor() {
     int status;
     int x;
+    
     if(-1 == (x = this->set_alarm())) {
         return -1;
-    } 
+    }
     
     //If a signal handler is invoked while a system call or library function call is blocked, then either:
     //* the call is automatically restarted after the signal handler returns; or
