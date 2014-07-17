@@ -569,7 +569,6 @@ int Inception::clean() {
 //Page cache still counts.
 //See http://blogs.360.cn/360xitong/2013/05/02/mem-cgroup%E7%9B%AE%E5%BD%95%E6%97%A0%E6%B3%95%E6%B8%85%E7%90%86%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90/
 //https://www.kernel.org/doc/Documentation/cgroups/memory.txt
-//    path = this->architecture.cgroup_dir + "memory.max_usage_in_bytes";
     path = this->architecture.cgroup_dir + "memory.force_empty";
     f = fopen(path.c_str(), "w");
     if(f == NULL) {
@@ -579,5 +578,15 @@ int Inception::clean() {
     }
     fprintf(f, "%d", 0);
     fclose(f);
+    path = this->architecture.cgroup_dir + "memory.max_usage_in_bytes";
+    f = fopen(path.c_str(), "w");
+    if(f == NULL) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    fprintf(f, "%d", 0);
+    fclose(f);
+
     return 0;
 }
