@@ -61,12 +61,16 @@ int main()
         x = incpt->init(0, run_cmd, infiles[i], outfiles[i], stderr_file, _uid, _gid, sandbox_path,
                 sandbox_path, "/sys/fs/cgroup/sandbox/box0", cur_time_limit, memory_limit, output_limit, incptfile);
         tlog << "init: " << x << endl << flush;
-        x = incpt->clean();
-        tlog << "clean: " << x << endl;
+	if(i == 0) {
+        	x = incpt->clean();
+        	tlog << "first clean: " << x << endl;
+	}
         x = incpt->exec();
         tlog << "exec: " << x << endl;
         x = incpt->waitfor();
         tlog << "waitfor: " << x << endl;
+	x = incpt->clean();
+	tlog << "clean: " << x << endl;
         x = incpt->destroy();
         tlog << "destroy: " << x << endl;
         //x = incpt->clean();
