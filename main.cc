@@ -62,6 +62,7 @@ int main()
                 sandbox_path, "/sys/fs/cgroup/sandbox/box0", cur_time_limit, memory_limit, output_limit, incptfile);
         tlog << "init: " << x << endl << flush;
 	if(i == 0) {
+		incpt->memory = incpt->architecture.memory_limit - 1; //trigger force empty
         	x = incpt->clean();
         	tlog << "first clean: " << x << endl;
 	}
