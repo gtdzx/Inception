@@ -535,8 +535,21 @@ int Inception::destroy() {
     fclose(f);
     if(pids.size() == 0)
         return 0;
-    for(vector<int>::iterator i = pids.begin(); i != pids.end(); i++)
-        kill(*i, SIGKILL);
+    //stop before kill to avoid fork bomb keeping forking...
+    for(vector<int>::iterator i = pids.begin(); i != pids.end(); i++) {
+        int _tmp = kill(*i, SIGSTOP);
+	if(_tmp != 0) {
+        	string message = "failed to stop process. errno = " + this->int2string(errno) + ", kill returns " + this->int2string(_tmp);
+        	log(message);
+	}
+    }	
+    for(vector<int>::iterator i = pids.begin(); i != pids.end(); i++) {
+        int _tmp = kill(*i, SIGKILL);
+	if(_tmp != 0) {
+        	string message = "failed to kill process. errno = " + this->int2string(errno) + ", kill returns " + this->int2string(_tmp);
+        	log(message);
+	}
+    }	
     pids.clear();
     if(NULL == (f = fopen(path.c_str(), "r"))) {
         string message = "failed to re- open " + path + ". errno = " + this->int2string(errno);
@@ -545,6 +558,8 @@ int Inception::destroy() {
     }
     while(fscanf(f, "%d", &_pid) != EOF) {
         pids.push_back(_pid);
+	string message = "notkilled pid = " + this->int2string(_pid);
+	log(message);
     }
     fclose(f);
     return pids.size();
