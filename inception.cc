@@ -489,7 +489,7 @@ int Inception::waitfor() {
             this->memory= this->read_memory();
             this->verdict = "TLE";
         }
-        if(signo == SIGXFSZ) {//output limit exceeded
+        else if(signo == SIGXFSZ) {//output limit exceeded
             this->time = this->read_time();
             this->memory = this->read_memory();
             this->verdict = "OLE";
@@ -500,15 +500,16 @@ int Inception::waitfor() {
             this->memory = this->read_memory();
             this->verdict = "TLE";
         }*/
-        //unknown kill
-        this->time = this->read_time();
-        this->memory = this->read_memory();
-        if(this->time > this->architecture.time_limit)
-            this->verdict = "TLE";
-        else if(this->memory > this->architecture.memory_limit)
-            this->verdict = "MLE";
-        else
-            this->verdict = "RE";
+        else {//unknown kill
+            this->time = this->read_time();
+            this->memory = this->read_memory();
+            if(this->time > this->architecture.time_limit)
+                this->verdict = "TLE";
+            else if(this->memory > this->architecture.memory_limit)
+                this->verdict = "MLE";
+            else
+                this->verdict = "RE";
+        }
         string message = "signaled by sig = " + this->int2string(signo) + "\nverdict = " + this->verdict;
         log(message);
         return 0;
