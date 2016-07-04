@@ -27,11 +27,12 @@ cp /usr/bin/python3.4 ./usr/bin/python3.4
 cp /usr/bin/pylint ./usr/bin/pylint
 mknod -m 666 ./dev/null c 1 3
 
-mkdir /sys/fs/cgroup
-mount -t tmpfs cgroup /sys/fs/cgroup/ -o size=32M
-mkdir /sys/fs/cgroup/sandbox
-mount -t cgroup -o cpuacct,memory sandbox /sys/fs/cgroup/sandbox/
-mkdir /sys/fs/cgroup/sandbox/$1
+
+mkdir /sys/fs/cgroup/cpu/sandbox
+mkdir /sys/fs/cgroup/cpu/sandbox/$1
+mkdir /sys/fs/cgroup/memory/sandbox
+mkdir /sys/fs/cgroup/memory/sandbox/$1
+
 
 
 
