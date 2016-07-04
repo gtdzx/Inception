@@ -59,7 +59,7 @@ int main()
         Inception* incpt = new Inception();
         int x = 0;
         x = incpt->init(0, run_cmd, infiles[i], outfiles[i], stderr_file, _uid, _gid, sandbox_path,
-                sandbox_path, "/sys/fs/cgroup/sandbox/box0", cur_time_limit, memory_limit, output_limit, incptfile);
+                sandbox_path, "/sys/fs/cgroup/cpu/sandbox/box0", "/sys/fs/cgroup/memory/sandbox/box0", cur_time_limit, memory_limit, output_limit, incptfile);
         tlog << "init: " << x << endl << flush;
 	if(i == 0) {
 		incpt->memory = incpt->architecture.memory_limit - 1; //trigger force empty

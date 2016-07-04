@@ -72,7 +72,8 @@ int Inception::init(int box_id,
                 int gid,
                 string chroot_dir,
                 string working_dir,
-                string cgroup_dir,
+                string cgroup_cpu_dir,
+		string cgroup_mem_dir,
                 int time_limit,
                 int memory_limit,
                 long long output_limit,
@@ -92,9 +93,12 @@ int Inception::init(int box_id,
     this->architecture.working_dir = working_dir;
     if(working_dir[working_dir.size() - 1] != '/')
         this->architecture.working_dir += '/';
-    this->architecture.cgroup_dir = cgroup_dir;
-    if(cgroup_dir[cgroup_dir.size() - 1] != '/')
-        this->architecture.cgroup_dir += '/';
+    this->architecture.cgroup_cpu_dir = cgroup_cpu_dir;
+    this->architecture.cgroup_mem_dir = cgroup_mem_dir;
+    if(cgroup_cpu_dir[cgroup_cpu_dir.size() - 1] != '/')
+        this->architecture.cgroup_cpu_dir += '/';
+    if(cgroup_mem_dir[cgroup_mem_dir.size() - 1] != '/')
+        this->architecture.cgroup_mem_dir += '/';
     this->architecture.time_limit = time_limit;
     this->architecture.memory_limit = memory_limit;
     this->architecture.output_limit = output_limit;
@@ -135,8 +139,12 @@ int Inception::check() {
         return -4;
     }
     //cgroup_dir
-    if(!this->is_dir(this->architecture.cgroup_dir)) {
-        log(this->architecture.cgroup_dir + " is not a directory.");
+    if(!this->is_dir(this->architecture.cgroup_cpu_dir)) {
+        log(this->architecture.cgroup_cpu_dir + " is not a directory.");
+        return -5;
+    }
+    if(!this->is_dir(this->architecture.cgroup_mem_dir)) {
+        log(this->architecture.cgroup_mem_dir + " is not a directory.");
         return -5;
     }
     return 0;
@@ -157,7 +165,7 @@ int Inception::set_memory_limit() {
     //echo $memory_limit > memory.soft_limit_in_bytes
     FILE* f;
     string path;
-    path = this->architecture.cgroup_dir + "memory.limit_in_bytes";
+    path = this->architecture.cgroup_mem_dir + "memory.limit_in_bytes";
     long long memory_limit_in_bytes = this->architecture.memory_limit;
     memory_limit_in_bytes *= 1024 * 1024;
     f = fopen(path.c_str(), "w");
@@ -168,7 +176,7 @@ int Inception::set_memory_limit() {
     }
     fprintf(f, "%lld", memory_limit_in_bytes);
     fclose(f);
-    path = this->architecture.cgroup_dir + "memory.soft_limit_in_bytes";
+    path = this->architecture.cgroup_mem_dir + "memory.soft_limit_in_bytes";
     f = fopen(path.c_str(), "w");
     if(f == NULL) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
@@ -237,10 +245,10 @@ int Inception::set_time_limit() {
     return setrlimit(RLIMIT_CPU, &rl);
 }
 int Inception::join_cgroup() {
-    //echo pid > tasks
+    //echo pid > cpu_dir/tasks
     FILE* f;
     string path;
-    path = this->architecture.cgroup_dir + "tasks";
+    path = this->architecture.cgroup_cpu_dir + "tasks";
     if(NULL == (f = fopen(path.c_str(), "w"))) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
         log(message);
@@ -248,6 +256,17 @@ int Inception::join_cgroup() {
     }
     fprintf(f, "%d", this->pid);
     fclose(f);
+
+    //echo pid > mem_dir/tasks
+    path = this->architecture.cgroup_mem_dir + "tasks";
+    if(NULL == (f = fopen(path.c_str(), "w"))) {
+        string message = "failed to open " + path + ". errno = " + this->int2string(errno);
+        log(message);
+        return -1;
+    }
+    fprintf(f, "%d", this->pid);
+    fclose(f);
+
     return 0;
 }
 
@@ -376,6 +395,7 @@ int Inception::exec() {
     
     this->pid = fork();
     if(this->pid == 0) {//child process
+        this->pid = getpid();
         if(0 != (x = this->build()))
             exit(x);
         execv(cmd[0], cmd);
@@ -412,7 +432,7 @@ int Inception::set_alarm() {
 }
 
 int Inception::read_time() {
-    string path = this->architecture.cgroup_dir + "cpuacct.usage";
+    string path = this->architecture.cgroup_cpu_dir + "cpuacct.usage";
     FILE* f = fopen(path.c_str(), "r");
     long long nano;
     fscanf(f, "%lld", &nano);
@@ -421,7 +441,7 @@ int Inception::read_time() {
 }
 
 int Inception::read_memory() {
-    string path = this->architecture.cgroup_dir + "memory.max_usage_in_bytes";
+    string path = this->architecture.cgroup_mem_dir + "memory.max_usage_in_bytes";
     FILE* f = fopen(path.c_str(), "r");
     long long memory_in_bytes;
     fscanf(f, "%lld", &memory_in_bytes);
@@ -522,7 +542,7 @@ int Inception::destroy() {
     kill(this->pid, SIGKILL);
     kill(-this->pid, SIGKILL);
     FILE* f;
-    string path = this->architecture.cgroup_dir + "tasks";
+    string path = this->architecture.cgroup_cpu_dir + "tasks";
     if(NULL == (f = fopen(path.c_str(), "r"))) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
         log(message);
@@ -571,7 +591,7 @@ int Inception::clean() {
     //echo 0 > memory.max_usage_in_bytes
     FILE* f;
     string path;
-    path = this->architecture.cgroup_dir + "cpuacct.usage";
+    path = this->architecture.cgroup_cpu_dir + "cpuacct.usage";
     f = fopen(path.c_str(), "w");
     if(f == NULL) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
@@ -588,7 +608,7 @@ int Inception::clean() {
 //However, force_empty is too slow. It takes about 500ms. So we only force_empty when 
 //memory usage > 0.5 * memory limit.
 if(this->memory * 2 > this->architecture.memory_limit) {
-    path = this->architecture.cgroup_dir + "memory.force_empty";
+    path = this->architecture.cgroup_mem_dir + "memory.force_empty";
     f = fopen(path.c_str(), "w");
     if(f == NULL) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);
@@ -598,7 +618,7 @@ if(this->memory * 2 > this->architecture.memory_limit) {
     fprintf(f, "%d", 0);
     fclose(f);
 }
-    path = this->architecture.cgroup_dir + "memory.max_usage_in_bytes";
+    path = this->architecture.cgroup_mem_dir + "memory.max_usage_in_bytes";
     f = fopen(path.c_str(), "w");
     if(f == NULL) {
         string message = "failed to open " + path + ". errno = " + this->int2string(errno);

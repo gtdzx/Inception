@@ -8,7 +8,7 @@ public:
         int box_id; 
         string cmd_line,inf,outf,errf;
         int uid, gid;
-        string chroot_dir, working_dir, cgroup_dir;
+        string chroot_dir, working_dir, cgroup_cpu_dir, cgroup_mem_dir;
         int time_limit; //in ms
         int memory_limit; //in MB
         long long output_limit; //in Byte
@@ -53,7 +53,8 @@ public:
                 int gid,
                 string chroot_dir,
                 string working_dir, 
-                string cgroup_dir,
+                string cgroup_cpu_dir,
+		string cgroup_mem_dir,
                 int time_limit,
                 int memory_limit,
                 long long outout_limit,
