@@ -24,7 +24,7 @@ cp /usr/bin/mono ./usr/bin/mono
 cp /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java ./usr/bin/java
 cp /usr/bin/python2.7 ./usr/bin/python2.7
 cp /usr/bin/python3.4 ./usr/bin/python3.4
-cp /usr/bin/pypy ./usr/bin/pypy
+ln -s /usr/lib/pypy/bin/pypy-c ./usr/bin/pypy
 cp ~/d8-binary/* ./usr/bin/ #d8 natives_blob.bin snapshot_blob.bin
 #cp /usr/bin/pylint ./usr/bin/pylint (pylint will be running out of box)
 #cp /usr/local/bin/jshint ./usr/bin/jshint (jshint will be running out of box)
