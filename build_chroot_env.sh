@@ -26,6 +26,7 @@ cp /usr/bin/python2.7 ./usr/bin/python2.7
 cp /usr/bin/python3.4 ./usr/bin/python3.4
 ln -s /usr/lib/pypy/bin/pypy-c ./usr/bin/pypy
 cp ~/d8-binary/* ./usr/bin/ #d8 natives_blob.bin snapshot_blob.bin
+cp ./.jshintrc /var/sandbox/$1/
 #cp /usr/bin/pylint ./usr/bin/pylint (pylint will be running out of box)
 #cp /usr/local/bin/jshint ./usr/bin/jshint (jshint will be running out of box)
 mknod -m 666 ./dev/null c 1 3
