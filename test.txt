@@ -1,0 +1,11 @@
+1000
+1000
+256
+/usr/bin/d8 Main.js
+./validate
+./working/
+/var/sandbox/box0/
+1
+./test/data/aplusb/1.in
+./working/1.out
+./test/data/aplusb/1.out

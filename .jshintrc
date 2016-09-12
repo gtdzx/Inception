@@ -1,0 +1,10 @@
+{
+  "shadow": true,
+  "undef": true,
+  "boss": true,
+  "lastsemic": true,
+  "loopfunc": true,
+  "supernew": true,
+  "node": true,
+  "predef": ["readline", "write", "print"]
+}
